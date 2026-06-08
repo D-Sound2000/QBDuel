@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+coverage/
+tsconfig.tsbuildinfo
+*.log
+*.err.log
+*-smoke.png
+qb-duel-new-ui-*.png
+qb-duel-shader-*.png
+qb-duel-polished*.png
+.env*.local
+.env
