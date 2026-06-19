@@ -11,3 +11,5 @@ qb-duel-shader-*.png
 qb-duel-polished*.png
 .env*.local
 .env
+
+.vercel

@@ -1,29 +1,31 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import type { LeaderboardEntry } from "@/lib/domain/types";
 
-export function LeaderboardPreview({ entries }: { entries: LeaderboardEntry[] }) {
+export function LeaderboardPreview({ entries, currentUserId }: { entries: LeaderboardEntry[]; currentUserId?: string }) {
   return (
-    <div className="panel-body" style={{ paddingTop: 0 }}>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Player</th>
-            <th>ELO</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((entry) => (
-            <tr key={entry.id}>
-              <td>#{entry.rank}</td>
-              <td>
-                <Link href={`/profile/${entry.username}`}>{entry.username}</Link>
-              </td>
-              <td>{entry.elo}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="ledger-list">
+      {entries.map((entry, index) => (
+        <Link
+          className="ledger-row leaderboard-row"
+          data-current={entry.id === currentUserId}
+          data-rank={entry.rank}
+          href={`/profile/${entry.username}`}
+          key={entry.id}
+          style={{ "--row-index": index } as CSSProperties}
+        >
+          <span className="rank-number">{entry.rank}</span>
+          <span>
+            <span className="ledger-name">{entry.username}</span>
+            <span className="ledger-meta">
+              <span>{entry.tier}</span>
+              <span>{entry.matchCount} matches</span>
+              <span>{Math.round(entry.winRate * 100)}% win rate</span>
+            </span>
+          </span>
+          <span className="ledger-elo">{entry.elo}</span>
+        </Link>
+      ))}
     </div>
   );
 }

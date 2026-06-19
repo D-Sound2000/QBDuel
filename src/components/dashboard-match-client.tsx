@@ -1,53 +1,82 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { io, type Socket } from "socket.io-client";
-import { Keyboard, Send, Swords } from "lucide-react";
-import type { Profile } from "@/lib/domain/types";
+import { Clock, Crown, Search, Swords, X } from "lucide-react";
+import type { Profile, ProfileStats } from "@/lib/domain/types";
 
-interface PlayerState {
-  id: string;
-  username: string;
-  elo: number;
-  score: number;
-}
+type FlowStage = "dashboard" | "searching" | "lobby" | "match" | "results";
 
-interface MatchState {
-  id: string | null;
-  phase: string;
-  tossupNumber: number;
-  words: string[];
-  powerMarkIndex: number;
-  wordIndex: number;
-  answerWindow: boolean;
-  answerDeadline: number | null;
-  players: PlayerState[];
-  message: string;
-}
-
-const initialMatchState: MatchState = {
-  id: null,
-  phase: "idle",
-  tossupNumber: 0,
-  words: [],
-  powerMarkIndex: Number.POSITIVE_INFINITY,
-  wordIndex: 0,
-  answerWindow: false,
-  answerDeadline: null,
-  players: [],
-  message: "Ready to enter the ranked queue.",
+type MatchSettings = {
+  ranked: boolean;
+  bracket: string;
+  categories: string[];
+  length: number;
+  answerTime: number;
 };
 
-export function DashboardMatchClient({ profile, wsUrl }: { profile: Profile; wsUrl: string }) {
-  const socketRef = useRef<Socket | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [queued, setQueued] = useState(false);
-  const [answer, setAnswer] = useState("");
-  const [state, setState] = useState<MatchState>(initialMatchState);
+const brackets = ["HS", "Easy College", "Regular", "Nationals", "ACF Nationals"];
+const categories = ["Literature", "History", "Science", "Fine Arts", "Religion", "Myth"];
+
+const defaultSettings: MatchSettings = {
+  ranked: true,
+  bracket: "Regular",
+  categories: ["Literature", "History", "Science"],
+  length: 8,
+  answerTime: 10,
+};
+
+const sampleWords =
+  "In one novel by this author, Lily Briscoe finishes a painting after Mrs. Ramsay's death, while another uses a chiming clock to frame Clarissa Dalloway's party in London.".split(
+    " ",
+  );
+
+const reviewRows = [
+  { order: 1, category: "Literature", buzz: "word 18", result: "Power", points: "+15", tone: "positive" },
+  { order: 2, category: "Science", buzz: "word 31", result: "Correct", points: "+10", tone: "positive" },
+  { order: 3, category: "History", buzz: "word 14", result: "Neg", points: "-5", tone: "negative" },
+  { order: 4, category: "Fine Arts", buzz: "dead", result: "Miss", points: "0", tone: "neutral" },
+];
+
+function settingSummary(settings: MatchSettings) {
+  return `${settings.ranked ? "Ranked" : "Casual"} / ${settings.bracket} / ${settings.length} tossups`;
+}
+
+function useAnimatedNumber(value: number) {
+  const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
-    const socket = io(wsUrl, {
-      transports: ["websocket"],
+    let frame = 0;
+    const startedAt = performance.now();
+    const duration = 900;
+
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 4);
+      setDisplayValue(Math.round(value * eased));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [value]);
+
+  return displayValue;
+}
+
+export function DashboardMatchClient({ profile, stats, wsUrl }: { profile: Profile; stats: ProfileStats; wsUrl: string }) {
+  const socketRef = useRef<Socket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [stage, setStage] = useState<FlowStage>("dashboard");
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [settings, setSettings] = useState(defaultSettings);
+  const [answer, setAnswer] = useState("");
+  const [revealedWords, setRevealedWords] = useState(0);
+  const [answering, setAnswering] = useState(false);
+  const displayElo = useAnimatedNumber(profile.elo);
+
+  useEffect(() => {
+    const socket = io(wsUrl || "http://localhost:4000", {
       auth: {
         player: {
           id: profile.id,
@@ -60,197 +89,328 @@ export function DashboardMatchClient({ profile, wsUrl }: { profile: Profile; wsU
     });
 
     socketRef.current = socket;
-
     socket.on("connect", () => setConnected(true));
     socket.on("disconnect", () => setConnected(false));
-    socket.on("queue.status", (payload: { queued: boolean; message: string }) => {
-      setQueued(payload.queued);
-      setState((current) => ({ ...current, message: payload.message }));
-    });
-    socket.on("match.found", (payload: { matchId: string; players: PlayerState[] }) => {
-      setQueued(false);
-      setState((current) => ({ ...current, id: payload.matchId, players: payload.players, phase: "matched", message: "Opponent found." }));
-    });
-    socket.on("match.countdown", (payload: { seconds: number }) => {
-      setState((current) => ({ ...current, phase: "countdown", message: `Match starts in ${payload.seconds}.` }));
-    });
-    socket.on("tossup.tick", (payload: { tossupNumber: number; words: string[]; powerMarkIndex: number; wordIndex: number }) => {
-      setState((current) => ({ ...current, ...payload, phase: "reading", answerWindow: false, message: "Reading." }));
-    });
-    socket.on("tossup.paused", (payload: { playerId: string; buzzWordIndex: number }) => {
-      setState((current) => ({ ...current, phase: "buzzed", wordIndex: payload.buzzWordIndex, message: `${payload.playerId === profile.id ? "You" : "Opponent"} buzzed.` }));
-    });
-    socket.on("answer.window", (payload: { playerId: string; deadline: number }) => {
-      setState((current) => ({ ...current, answerWindow: payload.playerId === profile.id, answerDeadline: payload.deadline, phase: "answering", message: payload.playerId === profile.id ? "Submit your answer." : "Opponent is answering." }));
-    });
-    socket.on("answer.result", (payload: { message: string; players: PlayerState[] }) => {
-      setAnswer("");
-      setState((current) => ({ ...current, answerWindow: false, players: payload.players, phase: "result", message: payload.message }));
-    });
-    socket.on("match.score", (payload: { players: PlayerState[] }) => {
-      setState((current) => ({ ...current, players: payload.players }));
-    });
-    socket.on("match.ended", (payload: { players: PlayerState[]; message: string }) => {
-      setState((current) => ({ ...current, answerWindow: false, players: payload.players, phase: "ended", message: payload.message }));
-    });
-    socket.on("match.error", (payload: { message: string }) => {
-      setState((current) => ({ ...current, message: payload.message }));
-    });
+    socket.on("connect_error", () => setConnected(false));
 
     return () => {
-      socket.emit("match.disconnect.intent");
+      socket.removeAllListeners();
       socket.disconnect();
+      socketRef.current = null;
     };
   }, [profile.elo, profile.id, profile.matchCount, profile.placementCount, profile.username, wsUrl]);
 
-  const visibleWords = useMemo(() => state.words.slice(0, state.wordIndex + 1), [state.wordIndex, state.words]);
-
-  const joinQueue = useCallback(() => {
-    socketRef.current?.emit("queue.join");
-  }, []);
-
-  const leaveQueue = useCallback(() => {
-    socketRef.current?.emit("queue.leave");
-  }, []);
-
-  const buzz = useCallback(() => {
-    socketRef.current?.emit("match.buzz", { matchId: state.id });
-  }, [state.id]);
-
-  const submitAnswer = useCallback(
-    (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      socketRef.current?.emit("match.answer.submit", { matchId: state.id, answer });
-    },
-    [answer, state.id],
-  );
-
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code === "Space" && !state.answerWindow && state.phase === "reading") {
-        event.preventDefault();
-        buzz();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [buzz, state.answerWindow, state.phase]);
+    if (stage !== "match") {
+      setRevealedWords(0);
+      setAnswering(false);
+      setAnswer("");
+      return;
+    }
 
-  const me = state.players.find((player) => player.id === profile.id);
-  const opponent = state.players.find((player) => player.id !== profile.id);
-  const isMatchActive = ["matched", "countdown", "reading", "buzzed", "answering", "result", "ended"].includes(state.phase);
+    const interval = window.setInterval(() => {
+      setRevealedWords((current) => Math.min(sampleWords.length, current + 1));
+    }, 155);
 
-  if (queued && !isMatchActive) {
+    return () => window.clearInterval(interval);
+  }, [stage]);
+
+  const visibleWords = useMemo(() => sampleWords.slice(0, revealedWords), [revealedWords]);
+
+  const beginSearch = () => {
+    setSetupOpen(false);
+    setStage("searching");
+    socketRef.current?.emit("queue.join", settings);
+  };
+
+  const cancelSearch = () => {
+    socketRef.current?.emit("queue.leave");
+    setStage("dashboard");
+  };
+
+  const submitAnswer = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAnswering(false);
+    setAnswer("");
+    setRevealedWords(sampleWords.length);
+  };
+
+  const toggleCategory = (category: string) => {
+    setSettings((current) => {
+      const exists = current.categories.includes(category);
+      const nextCategories = exists ? current.categories.filter((item) => item !== category) : [...current.categories, category];
+      return { ...current, categories: nextCategories.length > 0 ? nextCategories : current.categories };
+    });
+  };
+
+  if (stage === "searching") {
     return (
-      <div className="duel-lobby" aria-live="polite">
-        <div className="queue-compass" aria-hidden="true" />
-        <div style={{ marginTop: 36 }}>
-          <div className="title" style={{ fontSize: "clamp(2.4rem, 6vw, 4.5rem)" }}>
-            Seeking opponent...
-          </div>
-          <p style={{ color: "var(--text-secondary)", marginTop: 18 }}>
-            Searching within the ranked ELO window. The range expands if the queue runs long.
-          </p>
+      <section className="flow-stage matchmaking-stage" aria-label="Matchmaking">
+        <div className="stage-orbit" aria-hidden="true">
+          <Search size={34} />
         </div>
-        <div style={{ marginTop: 30, display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
-          <button className="ghost-button" type="button" onClick={leaveQueue}>
-            Withdraw from queue
+        <div className="flow-copy">
+          <span className="eyebrow">Finding opponent</span>
+          <h2>Scanning the midnight ladder.</h2>
+          <p>{settingSummary(settings)}. Current range is {profile.elo - 85} to {profile.elo + 85} ELO and widening.</p>
+        </div>
+        <div className="queue-meter" aria-label="Estimated wait">
+          <span>Estimated wait</span>
+          <strong>0:12</strong>
+          <span>Range +25 every 10 seconds</span>
+        </div>
+        <div className="flow-actions">
+          <button className="primary-button" type="button" onClick={() => setStage("lobby")}>
+            Accept found match
           </button>
-          <span className="badge">{state.message}</span>
+          <button className="ghost-button" type="button" onClick={cancelSearch}>
+            Cancel
+          </button>
         </div>
-      </div>
+      </section>
+    );
+  }
+
+  if (stage === "lobby") {
+    return (
+      <section className="flow-stage lobby-stage" aria-label="Pre-match lobby">
+        <div className="versus-grid">
+          <div className="duelist-card">
+            <span className="eyebrow">You</span>
+            <strong>{profile.username}</strong>
+            <span>{profile.elo} ELO</span>
+          </div>
+          <div className="countdown-seal" aria-label="Countdown to match">
+            3
+          </div>
+          <div className="duelist-card">
+            <span className="eyebrow">Opponent</span>
+            <strong>neginator</strong>
+            <span>1224 ELO</span>
+          </div>
+        </div>
+        <div className="flow-copy centered">
+          <span className="eyebrow">{settingSummary(settings)}</span>
+          <h2>The reading room is set.</h2>
+          <p>Players are seated, packets are loaded, and the lamp is dropping onto tossup one.</p>
+        </div>
+        <button className="primary-button" type="button" onClick={() => setStage("match")}>
+          Enter match
+        </button>
+      </section>
+    );
+  }
+
+  if (stage === "match") {
+    return (
+      <section className="match-stage" aria-label="Live match">
+        <div className="match-topline">
+          <span>{settingSummary(settings)}</span>
+          <span>TU 1 / {settings.length}</span>
+          <span>Power until word 22</span>
+        </div>
+        <div className="score-row">
+          <div className="score-card">
+            <span className="eyebrow">You</span>
+            <strong>{answering ? 0 : 15}</strong>
+            <span>{profile.username}</span>
+          </div>
+          <div className="timer-ring" aria-label={`${settings.answerTime} second answer timer`}>
+            <Clock size={18} />
+            <span>{settings.answerTime}</span>
+          </div>
+          <div className="score-card">
+            <span className="eyebrow">Opponent</span>
+            <strong>0</strong>
+            <span>neginator</span>
+          </div>
+        </div>
+
+        <div className="question-box" aria-live="polite">
+          {visibleWords.length === 0 ? (
+            <div className="question-placeholder">Tossup one is being drawn.</div>
+          ) : (
+            visibleWords.map((word, index) => (
+              <span className="question-word" data-power={index < 22} key={`${word}-${index}`}>
+                {word}{" "}
+              </span>
+            ))
+          )}
+        </div>
+
+        <div className="buzz-row">
+          <button className="buzz-button" type="button" onClick={() => setAnswering(true)} disabled={answering || revealedWords === 0}>
+            Buzz <span>space</span>
+          </button>
+          <form className="answer-form" onSubmit={submitAnswer}>
+            <input
+              aria-label="Answer"
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+              disabled={!answering}
+              placeholder={answering ? "Type your answer..." : "Buzz to open your answer line"}
+            />
+            <button className="primary-button" type="submit" disabled={!answering || !answer.trim()}>
+              Submit
+            </button>
+          </form>
+        </div>
+
+        <div className="flow-actions">
+          <button className="ghost-button" type="button" onClick={() => setStage("results")}>
+            Finish demo match
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (stage === "results") {
+    return (
+      <section className="flow-stage results-stage" aria-label="Match results">
+        <div className="verdict-block">
+          <span className="eyebrow">Final verdict</span>
+          <h2>Victory by power.</h2>
+          <p>55-35 over neginator. Rating moves from 1165 to 1186.</p>
+          <strong className="elo-delta">+21 ELO</strong>
+        </div>
+        <div className="review-list" aria-label="Tossup review">
+          {reviewRows.map((row) => (
+            <div className="review-row" data-tone={row.tone} key={row.order}>
+              <span>TU {row.order}</span>
+              <span>{row.category}</span>
+              <strong>{row.result}</strong>
+              <span>{row.buzz}</span>
+              <b>{row.points}</b>
+            </div>
+          ))}
+        </div>
+        <div className="flow-actions">
+          <button className="primary-button" type="button" onClick={beginSearch}>
+            Rematch queue
+          </button>
+          <button className="ghost-button" type="button" onClick={() => setSetupOpen(true)}>
+            New match
+          </button>
+          <button className="ghost-button" type="button" onClick={() => setStage("dashboard")}>
+            Home
+          </button>
+        </div>
+        {setupOpen ? renderSetupModal() : null}
+      </section>
     );
   }
 
   return (
-    <div className="match-room">
-      {!isMatchActive ? (
-        <div className="duel-lobby">
-          <span className="rank-badge">◆ {profile.tier} Tier</span>
-          <strong
-            style={{
-              display: "block",
-              marginTop: 22,
-              color: "var(--text-primary)",
-              fontFamily: "var(--font-numerics)",
-              fontSize: "clamp(4rem, 11vw, 7rem)",
-              lineHeight: 0.9,
-              textShadow: "0 0 40px var(--accent-glow)",
-            }}
-          >
-            {profile.elo}
-          </strong>
-          <div className="eyebrow" style={{ marginTop: 14 }}>
-            Current Rating
-          </div>
-          <div className="divider">
-            <span>◆</span>
-          </div>
-          <div style={{ marginTop: 34 }}>
-            <button className="primary-button" type="button" onClick={joinQueue} disabled={!connected} style={{ minWidth: 260, minHeight: 58 }}>
-              <Swords size={17} aria-hidden="true" /> Find Match
+    <>
+      <section className="duel-console" aria-label="Play controls">
+        <div className="quick-match">
+          <span className="eyebrow">Quick match</span>
+          <h2>{settingSummary(settings)}</h2>
+          <p>Reuse your last queue settings and sit for an instant ranked duel.</p>
+          <div className="flow-actions">
+            <button className="primary-button large" type="button" onClick={beginSearch}>
+              <Swords size={18} /> Quick match
             </button>
-          </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 18 }}>
-            <span className="badge">{connected ? "Socket connected" : "Socket offline"}</span>
-            <span className="badge">
-              <Keyboard size={15} aria-hidden="true" /> Space to buzz
-            </span>
+            <button className="ghost-button" type="button" onClick={() => setSetupOpen(true)}>
+              New match
+            </button>
           </div>
         </div>
-      ) : (
-        <>
-          <div className="score-row">
-            <div className="score-card">
-              <span className="kicker">You</span>
-              <strong>{me?.score ?? 0}</strong>
-              <span>{profile.username}</span>
-            </div>
-            <span className="badge">TU {state.tossupNumber || 1} / 8</span>
-            <div className="score-card" style={{ textAlign: "right" }}>
-              <span className="kicker">Opponent</span>
-              <strong style={{ color: "var(--foe)" }}>{opponent?.score ?? 0}</strong>
-              <span>{opponent?.username ?? "Waiting"}</span>
-            </div>
-          </div>
 
-          <div className="question-box" aria-live="polite">
-            {visibleWords.length === 0 ? (
-              <div className="question-placeholder">{state.message}</div>
-            ) : (
-              visibleWords.map((word, index) => (
-                <span key={`${word}-${index}`} className={index <= state.powerMarkIndex && word.includes("(*)") ? "power-mark" : undefined} style={{ animation: "wordAppear 0.12s ease" }}>
-                  {word}{" "}
-                </span>
-              ))
-            )}
-          </div>
-
-          <div className="buzz-row">
-            <button className="buzz-button" type="button" onClick={buzz} disabled={!connected || state.phase !== "reading"}>
-              Buzz <span style={{ fontSize: "var(--text-xs)", letterSpacing: "0.1em", opacity: 0.7 }}>[ space ]</span>
-            </button>
-            <form className="answer-form" onSubmit={submitAnswer}>
-              <input
-                aria-label="Answer"
-                suppressHydrationWarning
-                value={answer}
-                onChange={(event) => setAnswer(event.target.value)}
-                disabled={!state.answerWindow}
-                placeholder={state.answerWindow ? "Type your answer..." : "Answer window opens after your buzz"}
-              />
-              <button className="primary-button" type="submit" disabled={!state.answerWindow || !answer.trim()}>
-                <Send size={16} aria-hidden="true" /> Submit
-              </button>
-            </form>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
-            <span className="badge">{state.message}</span>
-            <span className="source-tag">qbreader · server-clocked</span>
-          </div>
-        </>
-      )}
-    </div>
+        <div className="rating-slate">
+          <Crown size={18} />
+          <span className="eyebrow">Current form</span>
+          <strong>{displayElo}</strong>
+          <span>{profile.tier} tier / {stats.wins}-{stats.losses} record</span>
+          <span className="status-dot" data-online={connected} aria-label={connected ? "Realtime connected" : "Demo mode"} />
+        </div>
+      </section>
+      {setupOpen ? renderSetupModal() : null}
+    </>
   );
+
+  function renderSetupModal() {
+    return (
+      <div className="modal-backdrop" role="presentation">
+        <section className="modal" role="dialog" aria-modal="true" aria-labelledby="new-match-title">
+          <div className="modal-header">
+            <div>
+              <span className="eyebrow">New match</span>
+              <h2 id="new-match-title">Set the table.</h2>
+            </div>
+            <button className="icon-button" type="button" onClick={() => setSetupOpen(false)} aria-label="Close new match settings">
+              <X size={18} />
+            </button>
+          </div>
+
+          <label className="toggle-row">
+            <span>
+              <strong>Ranked ladder</strong>
+              <small>Rating changes after the result.</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={settings.ranked}
+              onChange={(event) => setSettings((current) => ({ ...current, ranked: event.target.checked }))}
+            />
+          </label>
+
+          <div className="field-group">
+            <span className="eyebrow">Difficulty bracket</span>
+            <div className="segmented-control">
+              {brackets.map((bracket) => (
+                <button
+                  data-active={settings.bracket === bracket}
+                  key={bracket}
+                  type="button"
+                  onClick={() => setSettings((current) => ({ ...current, bracket }))}
+                >
+                  {bracket}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="field-group">
+            <span className="eyebrow">Categories</span>
+            <div className="chip-grid">
+              {categories.map((category) => (
+                <button data-active={settings.categories.includes(category)} key={category} type="button" onClick={() => toggleCategory(category)}>
+                  {category}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="modal-grid">
+            <label className="number-field">
+              <span>Length</span>
+              <input
+                min={4}
+                max={20}
+                type="number"
+                value={settings.length}
+                onChange={(event) => setSettings((current) => ({ ...current, length: Number(event.target.value) }))}
+              />
+            </label>
+            <label className="number-field">
+              <span>Answer time</span>
+              <input
+                min={5}
+                max={20}
+                type="number"
+                value={settings.answerTime}
+                onChange={(event) => setSettings((current) => ({ ...current, answerTime: Number(event.target.value) }))}
+              />
+            </label>
+          </div>
+
+          <button className="primary-button large" type="button" onClick={beginSearch}>
+            Find match
+          </button>
+        </section>
+      </div>
+    );
+  }
 }

@@ -15,7 +15,7 @@ const playerSchema = z.object({
 });
 
 const port = Number(process.env.WS_PORT ?? 4000);
-const origin = process.env.APP_ORIGIN ?? "http://localhost:3000";
+const origin = process.env.APP_ORIGIN ? process.env.APP_ORIGIN.split(",").map((entry) => entry.trim()) : ["http://localhost:3000", "http://localhost:3001"];
 
 const server = http.createServer();
 const io = new Server(server, {

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { getProfileStats } from "@/lib/data";
 import { RecentMatches } from "@/components/recent-matches";
+import { getProfileStats } from "@/lib/data";
 
 export default async function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
@@ -8,53 +8,62 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
   if (!stats.profile) notFound();
 
   return (
-    <main className="container main-grid">
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <div className="kicker">Player profile</div>
-            <h1 style={{ margin: 0 }}>{stats.profile.username}</h1>
-          </div>
-          <span className="badge">{stats.profile.tier}</span>
-        </div>
-        <div className="panel-body">
-          <div className="stat-grid">
-            <div className="stat">
-              <span>ELO</span>
-              <strong>{stats.profile.elo}</strong>
+    <main className="broadsheet">
+      <div className="container" style={{ paddingTop: 96 }}>
+        <section className="section">
+          <div className="profile-masthead">
+            <div>
+              <div className="eyebrow">Player profile</div>
+              <h1 className="profile-name">{stats.profile.username}</h1>
             </div>
-            <div className="stat">
-              <span>Record</span>
-              <strong>
-                {stats.wins}-{stats.losses}-{stats.draws}
-              </strong>
-            </div>
-            <div className="stat">
-              <span>Win rate</span>
-              <strong>{Math.round(stats.winRate * 100)}%</strong>
-            </div>
-            <div className="stat">
-              <span>Avg buzz</span>
-              <strong>{stats.averageBuzzPosition}</strong>
-            </div>
-            <div className="stat">
-              <span>Power rate</span>
-              <strong>{Math.round(stats.powerRate * 100)}%</strong>
-            </div>
-            <div className="stat">
-              <span>Neg rate</span>
-              <strong>{Math.round(stats.negRate * 100)}%</strong>
+            <div className="stats-line">
+              <span>
+                ELO <strong>{stats.profile.elo}</strong>
+              </span>
+              <span className="stat-divider">/</span>
+              <span>
+                Tier <strong>{stats.profile.tier}</strong>
+              </span>
             </div>
           </div>
-        </div>
-      </section>
-      <aside className="panel">
-        <div className="panel-header">
-          <h2 style={{ margin: 0 }}>Recent matches</h2>
-          <span className="badge">{stats.profile.matchCount} played</span>
-        </div>
-        <RecentMatches matches={stats.recentMatches} />
-      </aside>
+        </section>
+
+        <section className="section">
+          <div className="section-header">
+            <div className="eyebrow">Performance</div>
+            <h2 className="section-title">Ranked form</h2>
+          </div>
+          <div className="stats-line">
+            <span>
+              Record <strong>{stats.wins}-{stats.losses}-{stats.draws}</strong>
+            </span>
+            <span className="stat-divider">/</span>
+            <span>
+              Win rate <strong>{Math.round(stats.winRate * 100)}%</strong>
+            </span>
+            <span className="stat-divider">/</span>
+            <span>
+              Power <strong>{Math.round(stats.powerRate * 100)}%</strong>
+            </span>
+            <span className="stat-divider">/</span>
+            <span>
+              Neg <strong>{Math.round(stats.negRate * 100)}%</strong>
+            </span>
+            <span className="stat-divider">/</span>
+            <span>
+              Avg buzz <strong>{stats.averageBuzzPosition}w</strong>
+            </span>
+          </div>
+        </section>
+
+        <section className="section">
+          <div className="section-header">
+            <div className="eyebrow">{stats.profile.matchCount} matches played</div>
+            <h2 className="section-title">Match ledger</h2>
+          </div>
+          <RecentMatches matches={stats.recentMatches} playerId={stats.profile.id} />
+        </section>
+      </div>
     </main>
   );
 }
