@@ -39,7 +39,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               </span>
             </Link>
             <nav className="nav" aria-label="Primary navigation">
-              <span className="sidebar-label">Primary</span>
               {primaryActions.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -49,7 +48,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                   </Link>
                 );
               })}
-              <span className="sidebar-label">Secondary</span>
               {secondaryActions.map((item) => {
                 const Icon = item.icon;
                 return (
