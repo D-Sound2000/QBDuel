@@ -13,31 +13,41 @@ export default async function HomePage() {
   ]);
 
   return (
-    <main className="broadsheet">
-      <section className="hero-section">
-        <div className="container hero-inner">
-          <div className="hero-copy">
-            <span className="eyebrow">Ranked 1v1 quiz bowl</span>
-            <h1 className="hero-title" aria-label="Enter the reading room">
-              {["Enter", "the", "reading", "room"].map((word, index) => (
-                <span style={{ "--word-index": index } as CSSProperties} key={word}>
-                  {word}
-                </span>
-              ))}
-            </h1>
-            <p className="hero-subhead">
-              A midnight ladder for clean powers, disciplined buzzes, and tossups read under brass light.
-            </p>
+    <main className="broadsheet dashboard-page">
+      <div className="container dashboard-bento">
+        <section className="welcome-panel dashboard-card" aria-labelledby="dashboard-title">
+          <span className="eyebrow">Ranked 1v1 quiz bowl</span>
+          <h1 className="dashboard-title" id="dashboard-title">
+            {["Welcome", "back,", profile.username].map((word, index) => (
+              <span className="kinetic-word" style={{ "--word-index": index } as CSSProperties} key={word}>
+                {word}
+              </span>
+            ))}
+          </h1>
+          <p className="hero-subhead">
+            Pick up a live duel, sharpen categories in practice, or review the last few reads before climbing the ladder.
+          </p>
+          <div className="hero-metrics" aria-label="Player snapshot">
+            <span>
+              Rating <strong>{profile.elo}</strong>
+            </span>
+            <span>
+              Record <strong>{stats.wins}-{stats.losses}</strong>
+            </span>
+            <span>
+              Power <strong>{Math.round(stats.powerRate * 100)}%</strong>
+            </span>
           </div>
-          <DashboardMatchClient profile={profile} stats={stats} wsUrl={wsUrl} />
-        </div>
-      </section>
+        </section>
 
-      <div className="container">
-        <section className="section performance-section">
+        <section className="play-bento-card" aria-label="Start a match">
+          <DashboardMatchClient profile={profile} stats={stats} wsUrl={wsUrl} />
+        </section>
+
+        <section className="section performance-section dashboard-card">
           <div className="section-header">
             <div className="eyebrow">Performance</div>
-            <h2 className="section-title">The player ledger</h2>
+            <h2 className="section-title">Today&apos;s form</h2>
           </div>
           <div className="stats-line" aria-label="Performance statistics">
             <span>
@@ -53,23 +63,41 @@ export default async function HomePage() {
             </span>
           </div>
           <p className="section-copy">
-            Rating movement is earned after each completed match. The current record is {stats.wins}-{stats.losses}
+            Rating movement is earned after each completed match. Current record: {stats.wins}-{stats.losses}
             {stats.draws > 0 ? `-${stats.draws}` : ""} across {profile.matchCount} ranked matches.
           </p>
         </section>
 
-        <div className="content-grid">
-          <section className="section">
-            <div className="section-header">
-              <div className="eyebrow">Match ledger</div>
-              <h2 className="section-title">Recent matches</h2>
-            </div>
-            <RecentMatches matches={stats.recentMatches} playerId={profile.id} />
-          </section>
+        <section className="section dashboard-card recent-matches-card" aria-labelledby="recent-matches-title">
+          <div className="section-header">
+            <div className="eyebrow">Recent Matches</div>
+            <h2 className="section-title" id="recent-matches-title">
+              Your last duels
+            </h2>
+          </div>
+          <RecentMatches matches={stats.recentMatches} playerId={profile.id} />
+        </section>
 
-          <aside className="section">
+        <div className="side-stack bento-side-stack">
+          <aside className="section dashboard-card tossup-card" aria-labelledby="tossup-title">
             <div className="section-header">
-              <div className="eyebrow">Ranking</div>
+              <div className="eyebrow">Tossup of the Day</div>
+              <h2 className="section-title" id="tossup-title">
+                Literature
+              </h2>
+            </div>
+            <p>
+              Lily Briscoe paints; Clarissa Dalloway hosts a London party.
+            </p>
+            <div className="tossup-answer">
+              <span>Answer</span>
+              <strong>Virginia Woolf</strong>
+            </div>
+          </aside>
+
+          <aside className="section dashboard-card leaderboard-card">
+            <div className="section-header">
+              <div className="eyebrow">Top ladder</div>
               <h2 className="section-title">Leaderboard</h2>
             </div>
             <LeaderboardPreview entries={leaderboard.slice(0, 3)} currentUserId={profile.id} />

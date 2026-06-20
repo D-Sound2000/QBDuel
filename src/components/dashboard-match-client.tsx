@@ -305,15 +305,15 @@ export function DashboardMatchClient({ profile, stats, wsUrl }: { profile: Profi
     <>
       <section className="duel-console" aria-label="Play controls">
         <div className="quick-match">
-          <span className="eyebrow">Quick match</span>
+          <span className="eyebrow">Ready queue</span>
           <h2>{settingSummary(settings)}</h2>
-          <p>Reuse your last queue settings and sit for an instant ranked duel.</p>
+          <p>Start from your saved ladder setup and sit for an instant ranked duel.</p>
           <div className="flow-actions">
             <button className="primary-button large" type="button" onClick={beginSearch}>
-              <Swords size={18} /> Quick match
+              <Swords size={18} /> Start Match
             </button>
             <button className="ghost-button" type="button" onClick={() => setSetupOpen(true)}>
-              New match
+              Customize
             </button>
           </div>
         </div>
