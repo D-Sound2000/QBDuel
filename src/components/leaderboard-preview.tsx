@@ -3,6 +3,15 @@ import type { CSSProperties } from "react";
 import type { LeaderboardEntry } from "@/lib/domain/types";
 
 export function LeaderboardPreview({ entries, currentUserId }: { entries: LeaderboardEntry[]; currentUserId?: string }) {
+  if (entries.length === 0) {
+    return (
+      <div className="empty-state">
+        <strong>No ranked players yet.</strong>
+        <span>Finish onboarding and play a match to seed the ladder.</span>
+      </div>
+    );
+  }
+
   return (
     <div className="ledger-list">
       {entries.map((entry, index) => (

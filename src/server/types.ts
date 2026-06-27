@@ -8,6 +8,7 @@ export interface QueuePlayer {
   placementCount: number;
   socketId: string;
   queuedAt: number;
+  readingWpm: number;
 }
 
 export interface MatchPlayer extends QueuePlayer {
@@ -29,6 +30,7 @@ export interface ActiveMatch {
   results: TossupResult[];
   timers: NodeJS.Timeout[];
   createdAt: number;
+  readingWpm: number;
 }
 
 export interface MatchRepository {

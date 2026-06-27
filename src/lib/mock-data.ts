@@ -7,6 +7,9 @@ export const demoProfiles: Profile[] = [
     username: "dhruv",
     elo: 1186,
     matchCount: 18,
+    wins: 11,
+    losses: 7,
+    draws: 0,
     placementCount: 5,
     tier: tierForElo(1186),
     categoryPreferences: ["Literature", "History", "Science"],
@@ -17,6 +20,9 @@ export const demoProfiles: Profile[] = [
     username: "neginator",
     elo: 1224,
     matchCount: 43,
+    wins: 24,
+    losses: 18,
+    draws: 1,
     placementCount: 5,
     tier: tierForElo(1224),
     categoryPreferences: ["Science", "Fine Arts"],
@@ -27,6 +33,9 @@ export const demoProfiles: Profile[] = [
     username: "powerline",
     elo: 1462,
     matchCount: 188,
+    wins: 128,
+    losses: 57,
+    draws: 3,
     placementCount: 5,
     tier: tierForElo(1462),
     categoryPreferences: ["History"],
@@ -68,7 +77,7 @@ export function getDemoLeaderboard(): LeaderboardEntry[] {
       elo: profile.elo,
       tier: profile.tier,
       matchCount: profile.matchCount,
-      winRate: profile.id === "demo-leader" ? 0.68 : profile.id === "demo-you" ? 0.61 : 0.56,
+      winRate: profile.matchCount > 0 ? (profile.wins + profile.draws * 0.5) / profile.matchCount : 0,
     }));
 }
 
@@ -77,10 +86,10 @@ export function getDemoProfileStats(username = "dhruv"): ProfileStats {
 
   return {
     profile,
-    wins: 11,
-    losses: 7,
-    draws: 0,
-    winRate: 0.61,
+    wins: profile.wins,
+    losses: profile.losses,
+    draws: profile.draws,
+    winRate: profile.matchCount > 0 ? (profile.wins + profile.draws * 0.5) / profile.matchCount : 0,
     averageBuzzPosition: 24.8,
     powerRate: 0.18,
     negRate: 0.11,

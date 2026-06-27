@@ -5,7 +5,7 @@ import { getProfileStats } from "@/lib/data";
 export default async function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
   const stats = await getProfileStats(username);
-  if (!stats.profile) notFound();
+  if (!stats?.profile) notFound();
 
   return (
     <main className="broadsheet">

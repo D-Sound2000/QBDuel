@@ -1,10 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
-import { hasSupabaseServiceRole } from "../env";
+import { hasSupabaseServiceRole, supabaseServiceRoleKey, supabaseUrl } from "../env";
 
 export function createSupabaseAdminClient() {
   if (!hasSupabaseServiceRole()) return null;
 
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  return createClient(supabaseUrl!, supabaseServiceRoleKey!, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

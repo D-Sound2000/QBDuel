@@ -13,7 +13,7 @@ export default async function LeaderboardPage() {
             <h1 className="page-title">Leaderboard</h1>
             <p className="section-copy">The current order of QB Duel players, set by ELO and recorded match results.</p>
           </div>
-          <LeaderboardPreview entries={entries.slice(0, 3)} currentUserId={profile.id} />
+          <LeaderboardPreview entries={entries} currentUserId={profile?.id} />
         </section>
       </div>
     </main>

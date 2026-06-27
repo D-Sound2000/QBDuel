@@ -1,17 +1,15 @@
 import { Server } from "socket.io";
 import { difficultyForAverageElo } from "@/lib/domain/difficulty";
+import { answerWindowMs, matchTossupCount, nextTossupDelayMs, wordDelayMsForWpm } from "@/lib/domain/match-config";
 import type { TossupResult } from "@/lib/domain/types";
 import { buildRatingEvents } from "./repository";
 import type { ActiveMatch, MatchRepository, QueuePlayer } from "./types";
 
-const tossupsPerMatch = 8;
-const tickMs = 600;
-const answerMs = 5_000;
-const nextTossupMs = 1_500;
-
 export class MatchEngine {
   private matches = new Map<string, ActiveMatch>();
   private playerToMatch = new Map<string, string>();
+  private finalizingMatchIds = new Set<string>();
+  private processingAnswerKeys = new Set<string>();
 
   constructor(
     private readonly io: Server,
@@ -20,7 +18,7 @@ export class MatchEngine {
 
   async createMatch(playerOne: QueuePlayer, playerTwo: QueuePlayer): Promise<ActiveMatch> {
     const difficulty = difficultyForAverageElo(playerOne.elo, playerTwo.elo);
-    const tossups = await this.repository.getTossups(difficulty.difficulties, tossupsPerMatch, new Set());
+    const tossups = await this.repository.getTossups(difficulty.difficulties, matchTossupCount, new Set());
     const match: ActiveMatch = {
       id: crypto.randomUUID(),
       players: [
@@ -36,6 +34,7 @@ export class MatchEngine {
       results: [],
       timers: [],
       createdAt: Date.now(),
+      readingWpm: Math.min(playerOne.readingWpm, playerTwo.readingWpm),
     };
 
     this.matches.set(match.id, match);
@@ -50,6 +49,7 @@ export class MatchEngine {
       matchId: match.id,
       players: this.publicPlayers(match),
       difficulty: difficulty.label,
+      readingWpm: match.readingWpm,
     });
 
     this.startCountdown(match);
@@ -59,38 +59,46 @@ export class MatchEngine {
   buzz(playerId: string, matchId?: string) {
     const match = this.resolveMatch(playerId, matchId);
     if (!match || match.phase !== "reading" || match.currentBuzzPlayerId) return;
+    if (match.answeredPlayerIds.has(playerId)) return;
 
     match.phase = "answering";
     match.currentBuzzPlayerId = playerId;
     this.clearTimers(match);
 
     this.io.to(match.id).emit("tossup.paused", { playerId, buzzWordIndex: match.wordIndex, serverTime: Date.now() });
-    this.io.to(match.id).emit("answer.window", { playerId, deadline: Date.now() + answerMs });
+    this.io.to(match.id).emit("answer.window", { playerId, deadline: Date.now() + answerWindowMs });
 
     match.timers.push(
       setTimeout(() => {
         void this.handleAnswer(playerId, "", match.id);
-      }, answerMs),
+      }, answerWindowMs),
     );
   }
 
   async handleAnswer(playerId: string, answer: string, matchId?: string) {
     const match = this.resolveMatch(playerId, matchId);
     if (!match || match.phase !== "answering" || match.currentBuzzPlayerId !== playerId) return;
+    const processingKey = `${match.id}:${match.tossupIndex}:${playerId}`;
+    if (this.processingAnswerKeys.has(processingKey)) return;
+    this.processingAnswerKeys.add(processingKey);
 
     this.clearTimers(match);
     const tossup = match.tossups[match.tossupIndex];
     const player = match.players.find((entry) => entry.id === playerId);
-    if (!player || !tossup) return;
+    if (!player || !tossup) {
+      this.processingAnswerKeys.delete(processingKey);
+      return;
+    }
 
-    const judgment = answer ? await this.repository.judgeAnswer(answer, tossup.answer) : "incorrect";
+    const judgment = answer ? await this.repository.judgeAnswer(answer, tossup.answerLine) : "incorrect";
 
     if (judgment === "prompt") {
-      this.io.to(match.id).emit("answer.window", { playerId, deadline: Date.now() + answerMs });
+      this.processingAnswerKeys.delete(processingKey);
+      this.io.to(match.id).emit("answer.window", { playerId, deadline: Date.now() + answerWindowMs });
       match.timers.push(
         setTimeout(() => {
           void this.handleAnswer(playerId, answer, match.id);
-        }, answerMs),
+        }, answerWindowMs),
       );
       return;
     }
@@ -102,6 +110,7 @@ export class MatchEngine {
       if (wasPower) player.powers += 1;
       this.addResult(match, playerId, wasPower ? "power" : "correct", points, wasPower, answer);
       this.io.to(match.id).emit("answer.result", { message: `${player.username} ${wasPower ? "powered" : "got"} tossup ${match.tossupIndex + 1}.`, players: this.publicPlayers(match) });
+      this.processingAnswerKeys.delete(processingKey);
       this.nextTossupOrEnd(match);
       return;
     }
@@ -113,12 +122,14 @@ export class MatchEngine {
     this.io.to(match.id).emit("answer.result", { message: `${player.username} negged.`, players: this.publicPlayers(match) });
 
     if (match.answeredPlayerIds.size >= match.players.length) {
+      this.processingAnswerKeys.delete(processingKey);
       this.nextTossupOrEnd(match);
       return;
     }
 
     match.currentBuzzPlayerId = null;
     match.phase = "reading";
+    this.processingAnswerKeys.delete(processingKey);
     this.resumeReading(match);
   }
 
@@ -126,6 +137,7 @@ export class MatchEngine {
     const match = this.resolveMatch(playerId);
     if (!match || match.phase === "ended") return;
     const player = match.players.find((entry) => entry.id === playerId);
+    if (player?.connected) return;
     if (player) player.connected = false;
     match.phase = "ended";
     this.clearTimers(match);
@@ -136,6 +148,32 @@ export class MatchEngine {
   getMatchForPlayer(playerId: string) {
     const matchId = this.playerToMatch.get(playerId);
     return matchId ? this.matches.get(matchId) ?? null : null;
+  }
+
+  markDisconnected(playerId: string) {
+    const match = this.resolveMatch(playerId);
+    const player = match?.players.find((entry) => entry.id === playerId);
+    if (!match || !player || match.phase === "ended") return false;
+    player.connected = false;
+    return true;
+  }
+
+  reconnectPlayer(playerId: string, socketId: string) {
+    const match = this.resolveMatch(playerId);
+    const player = match?.players.find((entry) => entry.id === playerId);
+    if (!match || !player || match.phase === "ended") return null;
+
+    player.connected = true;
+    player.socketId = socketId;
+    this.io.sockets.sockets.get(socketId)?.join(match.id);
+    this.io.to(socketId).emit("match.found", {
+      matchId: match.id,
+      players: this.publicPlayers(match),
+      difficulty: difficultyForAverageElo(match.players[0].elo, match.players[1].elo).label,
+      readingWpm: match.readingWpm,
+    });
+    this.io.to(socketId).emit("match.score", { players: this.publicPlayers(match) });
+    return match;
   }
 
   private startCountdown(match: ActiveMatch) {
@@ -168,6 +206,7 @@ export class MatchEngine {
         words: tossup.words,
         powerMarkIndex: tossup.powerMarkIndex,
         wordIndex: match.wordIndex,
+        readingWpm: match.readingWpm,
       });
 
       if (match.wordIndex >= tossup.words.length - 1) {
@@ -177,7 +216,7 @@ export class MatchEngine {
       }
 
       match.wordIndex += 1;
-      match.timers.push(setTimeout(tick, tickMs));
+      match.timers.push(setTimeout(tick, wordDelayMsForWpm(match.readingWpm)));
     };
 
     tick();
@@ -191,16 +230,17 @@ export class MatchEngine {
     match.currentBuzzPlayerId = null;
     match.answeredPlayerIds = new Set();
 
-    if (match.tossupIndex >= tossupsPerMatch) {
+    if (match.tossupIndex >= matchTossupCount) {
       void this.finalize(match);
       return;
     }
 
-    match.timers.push(setTimeout(() => this.startReading(match), nextTossupMs));
+    match.timers.push(setTimeout(() => this.startReading(match), nextTossupDelayMs));
   }
 
   private async finalize(match: ActiveMatch) {
-    if (match.phase === "ended" && match.results.length >= tossupsPerMatch) return;
+    if (this.finalizingMatchIds.has(match.id)) return;
+    this.finalizingMatchIds.add(match.id);
     match.phase = "ended";
     this.clearTimers(match);
     const ratingEvents = buildRatingEvents(match);

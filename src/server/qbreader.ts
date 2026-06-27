@@ -7,7 +7,9 @@ interface RandomTossupResponse {
   tossups?: Array<{
     _id?: string;
     question?: string;
+    question_sanitized?: string;
     answer: string;
+    answer_sanitized?: string;
     difficulty?: number;
     category?: string;
     tournament?: string;
@@ -24,7 +26,7 @@ export class QbReaderClient {
     url.searchParams.set("standardOnly", "true");
     url.searchParams.set("powermarkOnly", "true");
 
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(4_000) });
     if (!response.ok) throw new Error(`QBReader random-tossup failed: ${response.status}`);
 
     const payload = (await response.json()) as RandomTossupResponse;
@@ -36,13 +38,13 @@ export class QbReaderClient {
       const url = new URL(`${this.baseUrl}/check-answer`);
       url.searchParams.set("answerline", answerLine);
       url.searchParams.set("givenAnswer", given);
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(4_000) });
       if (!response.ok) return judgeAnswerFallback(given, answerLine);
 
       const payload = (await response.json()) as { directive?: string; result?: string };
       const result = (payload.directive ?? payload.result ?? "").toLowerCase();
       if (result.includes("prompt")) return "prompt";
-      if (result.includes("correct")) return "correct";
+      if (result.includes("accept") || result.includes("correct")) return "correct";
       return "incorrect";
     } catch {
       return judgeAnswerFallback(given, answerLine);

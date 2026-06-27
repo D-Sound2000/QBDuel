@@ -41,6 +41,9 @@ export class HybridRepository implements MatchRepository {
         username: player.username,
         elo: player.elo,
         matchCount: player.matchCount,
+        wins: 0,
+        losses: 0,
+        draws: 0,
         placementCount: player.placementCount,
         tier: tierForElo(player.elo),
         categoryPreferences: [],
@@ -55,6 +58,9 @@ export class HybridRepository implements MatchRepository {
         username: player.username,
         elo: player.elo,
         matchCount: player.matchCount,
+        wins: 0,
+        losses: 0,
+        draws: 0,
         placementCount: player.placementCount,
         tier: tierForElo(player.elo),
         categoryPreferences: [],
@@ -68,6 +74,9 @@ export class HybridRepository implements MatchRepository {
       email: data.email ?? undefined,
       elo: data.elo,
       matchCount: data.match_count,
+      wins: data.wins ?? 0,
+      losses: data.losses ?? 0,
+      draws: data.draws ?? 0,
       placementCount: data.placement_count,
       tier: tierForElo(data.elo),
       categoryPreferences: data.category_preferences ?? [],
@@ -77,7 +86,7 @@ export class HybridRepository implements MatchRepository {
 
   async getTossups(difficulties: number[], count: number, seenIds: Set<string>): Promise<Tossup[]> {
     try {
-      const tossups = await this.qbreader.randomTossups(difficulties, Math.max(10, count), seenIds);
+      const tossups = await this.qbreader.randomTossups(difficulties, count + 5, seenIds);
       if (tossups.length >= count) return tossups.slice(0, count);
     } catch {
       // Fallback below keeps local development playable when offline or rate-limited.
@@ -141,24 +150,26 @@ export class HybridRepository implements MatchRepository {
     );
 
     for (const event of ratingEvents) {
+      const { data: current } = await this.supabase
+        .from("profiles")
+        .select("match_count, placement_count, wins, losses, draws")
+        .eq("id", event.playerId)
+        .single();
+      const playerWon = winner === event.playerId;
+      const playerLost = winner !== null && winner !== event.playerId;
+
       await this.supabase
         .from("profiles")
         .update({
           elo: event.after,
-          match_count: this.incrementMatchCount(match, event.playerId),
-          placement_count: this.incrementPlacementCount(match, event.playerId),
+          match_count: (current?.match_count ?? 0) + 1,
+          wins: (current?.wins ?? 0) + (playerWon ? 1 : 0),
+          losses: (current?.losses ?? 0) + (playerLost ? 1 : 0),
+          draws: (current?.draws ?? 0) + (winner === null ? 1 : 0),
+          placement_count: Math.min(5, (current?.placement_count ?? 0) + 1),
         })
         .eq("id", event.playerId);
     }
-  }
-
-  private incrementMatchCount(match: ActiveMatch, playerId: string) {
-    return (match.players.find((player) => player.id === playerId)?.matchCount ?? 0) + 1;
-  }
-
-  private incrementPlacementCount(match: ActiveMatch, playerId: string) {
-    const current = match.players.find((player) => player.id === playerId)?.placementCount ?? 0;
-    return Math.min(5, current + 1);
   }
 }
 

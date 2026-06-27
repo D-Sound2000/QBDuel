@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { redirect } from "next/navigation";
 import { DashboardMatchClient } from "@/components/dashboard-match-client";
 import { DashboardReveal } from "@/components/dashboard-reveal";
 import { LeaderboardPreview } from "@/components/leaderboard-preview";
@@ -8,12 +9,11 @@ import { getCurrentProfile, getLeaderboard, getProfileStats } from "@/lib/data";
 import { wsUrl } from "@/lib/env";
 
 export default async function HomePage() {
-  const [profile, leaderboard, stats] = await Promise.all([
-    getCurrentProfile(),
-    getLeaderboard(),
-    getProfileStats("dhruv"),
-  ]);
-  const tossupOfDayClue = "Lily Briscoe paints; Clarissa Dalloway hosts a London party.";
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/sign-in");
+
+  const [leaderboard, stats] = await Promise.all([getLeaderboard(), getProfileStats(profile.username)]);
+  if (!stats) redirect("/onboarding");
 
   return (
     <main className="broadsheet dashboard-page">
@@ -87,15 +87,11 @@ export default async function HomePage() {
               <div className="section-header">
                 <div className="eyebrow">Tossup of the Day</div>
                 <h2 className="section-title" id="tossup-title">
-                  Literature
+                  Daily reader
                 </h2>
               </div>
-              <p>{tossupOfDayClue}</p>
-              <TossupOfDayButton clue={tossupOfDayClue} />
-              <div className="tossup-answer">
-                <span>Answer</span>
-                <strong>Virginia Woolf</strong>
-              </div>
+              <p>Open today&apos;s tossup in the reader, choose a WPM, and buzz through it like practice.</p>
+              <TossupOfDayButton />
             </aside>
 
             <aside className="section dashboard-card leaderboard-card">

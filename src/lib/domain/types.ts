@@ -12,6 +12,9 @@ export interface Profile {
   email?: string;
   elo: number;
   matchCount: number;
+  wins: number;
+  losses: number;
+  draws: number;
   placementCount: number;
   tier: Tier;
   categoryPreferences: string[];
@@ -22,6 +25,7 @@ export interface Tossup {
   id: string;
   text: string;
   answer: string;
+  answerLine: string;
   difficulty: number;
   category: string;
   tournament?: string;

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, BookOpenCheck, Dumbbell, Settings, Swords, Trophy, UserRound, UsersRound } from "lucide-react";
+import { BarChart3, BookOpenCheck, Dumbbell, LogIn, LogOut, Settings, Swords, Trophy, UserRound } from "lucide-react";
+import { signOut } from "@/app/auth/actions";
 import { CursorRisoTrail } from "@/components/cursor-riso-trail";
-import { GradientBackground } from "@/components/ui/paper-design-shader-background";
+import { getCurrentProfile } from "@/lib/data";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,24 +13,26 @@ export const metadata: Metadata = {
 
 const primaryActions = [
   { href: "/", label: "Play", icon: Swords },
-  { href: "/matches/match-demo-001", label: "Practice", icon: Dumbbell },
+  { href: "/practice", label: "Practice", icon: Dumbbell },
   { href: "/leaderboard", label: "Leaderboards", icon: Trophy },
 ] as const;
 
-const secondaryActions = [
-  { href: "/profile/dhruv", label: "Profile", icon: UserRound },
-  { href: "/profile/dhruv", label: "Stats", icon: BarChart3 },
-  { href: "/", label: "Friends", icon: UsersRound },
-] as const;
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const profile = await getCurrentProfile();
+  const secondaryActions = profile
+    ? [
+        { href: `/profile/${profile.username}`, label: "Profile", icon: UserRound },
+        { href: `/profile/${profile.username}`, label: "Stats", icon: BarChart3 },
+        { href: "/settings", label: "Settings", icon: Settings },
+      ]
+    : [{ href: "/sign-in", label: "Sign in", icon: LogIn }];
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <div className="vignette" aria-hidden="true" />
         <CursorRisoTrail />
         <div className="app-shell">
-          <GradientBackground />
           <header className="topbar">
             <Link className="brand" href="/">
               <BookOpenCheck size={34} aria-hidden="true" />
@@ -42,7 +45,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               {primaryActions.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Link href={item.href} key={item.label}>
+                  <Link href={item.href as never} key={item.label}>
                     <Icon size={17} aria-hidden="true" />
                     <span>{item.label}</span>
                   </Link>
@@ -51,7 +54,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               {secondaryActions.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Link href={item.href} key={item.label}>
+                  <Link href={item.href as never} key={item.label}>
                     <Icon size={17} aria-hidden="true" />
                     <span>{item.label}</span>
                   </Link>
@@ -59,18 +62,34 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               })}
             </nav>
             <div className="sidebar-footer">
-              <Link className="sidebar-profile" href="/profile/dhruv">
-                <span className="profile-avatar" aria-hidden="true">
-                  D
-                </span>
-                <span>
-                  <strong>dhruv</strong>
-                  <small>Gold tier</small>
-                </span>
-              </Link>
-              <Link className="sidebar-settings" href="/profile/dhruv" aria-label="Settings">
-                <Settings size={18} />
-              </Link>
+              {profile ? (
+                <>
+                  <Link className="sidebar-profile" href={`/profile/${profile.username}`}>
+                    <span className="profile-avatar" aria-hidden="true">
+                      {profile.username.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span>
+                      <strong>{profile.username}</strong>
+                      <small>{profile.tier} tier</small>
+                    </span>
+                  </Link>
+                  <form action={signOut}>
+                    <button className="sidebar-settings" type="submit" aria-label="Sign out">
+                      <LogOut size={18} />
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <Link className="sidebar-profile" href="/sign-in">
+                  <span className="profile-avatar" aria-hidden="true">
+                    ?
+                  </span>
+                  <span>
+                    <strong>Sign in</strong>
+                    <small>Ranked play</small>
+                  </span>
+                </Link>
+              )}
             </div>
           </header>
           {children}

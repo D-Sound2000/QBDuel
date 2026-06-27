@@ -1,8 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { judgeAnswerFallback, normalizeAnswer } from "@/lib/domain/answer";
 import { difficultyForAverageElo } from "@/lib/domain/difficulty";
 import { calculateElo, expectedScore, kFactor } from "@/lib/domain/elo";
-import { findPowerMarkIndex, tokenizeTossup } from "@/lib/domain/tossup";
+import { matchTossupCount, normalizeReadingWpm, wordDelayMsForWpm } from "@/lib/domain/match-config";
+import { findPowerMarkIndex, normalizeTossup, tokenizeTossup } from "@/lib/domain/tossup";
+import { QbReaderClient } from "@/server/qbreader";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("ELO", () => {
   it("calculates expected scores symmetrically", () => {
@@ -45,6 +51,35 @@ describe("tossup parsing", () => {
     expect(words).toEqual(["One", "two", "(*)", "three"]);
     expect(findPowerMarkIndex(words)).toBe(2);
   });
+
+  it("normalizes QBReader sanitized fields and preserves answerline", () => {
+    const tossup = normalizeTossup({
+      _id: "abc",
+      question: "<b>Bad HTML (*) clue</b>",
+      question_sanitized: "Clean (*) clue",
+      answer: "<b><u>Crimean</u></b> War",
+      answer_sanitized: "Crimean War",
+      difficulty: 4,
+      category: "History",
+    });
+
+    expect(tossup.text).toBe("Clean (*) clue");
+    expect(tossup.answer).toBe("Crimean War");
+    expect(tossup.answerLine).toBe("Crimean War");
+    expect(tossup.powerMarkIndex).toBe(1);
+  });
+});
+
+describe("match config", () => {
+  it("ships the ranked v1 format as seven tossups", () => {
+    expect(matchTossupCount).toBe(7);
+  });
+
+  it("maps reader WPM to per-word timing", () => {
+    expect(wordDelayMsForWpm(200)).toBe(300);
+    expect(normalizeReadingWpm(150)).toBe(150);
+    expect(normalizeReadingWpm(123)).toBe(180);
+  });
 });
 
 describe("answer fallback", () => {
@@ -58,5 +93,17 @@ describe("answer fallback", () => {
 
   it("prompts on partial answers", () => {
     expect(judgeAnswerFallback("Woolf", "Virginia Woolf")).toBe("prompt");
+  });
+
+  it("maps QBReader accept directives to correct", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ directive: "accept" }),
+      })),
+    );
+
+    await expect(new QbReaderClient("https://example.test").checkAnswer("Crimean", "Crimean War")).resolves.toBe("correct");
   });
 });

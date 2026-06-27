@@ -1,4 +1,5 @@
 import { getMatch } from "@/lib/data";
+import { notFound } from "next/navigation";
 
 function toneForDelta(delta: number) {
   if (delta > 0) return "tone-positive";
@@ -13,6 +14,7 @@ function signed(value: number) {
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const match = await getMatch(id);
+  if (!match) notFound();
   const winner = match.winnerId === match.player1.id ? match.player1 : match.winnerId === match.player2.id ? match.player2 : null;
 
   return (

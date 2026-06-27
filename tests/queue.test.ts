@@ -11,6 +11,7 @@ function player(id: string, elo: number, queuedAt = Date.now()): QueuePlayer {
     placementCount: 5,
     socketId: `socket-${id}`,
     queuedAt,
+    readingWpm: 180,
   };
 }
 
