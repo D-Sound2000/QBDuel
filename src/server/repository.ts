@@ -100,75 +100,85 @@ export class HybridRepository implements MatchRepository {
   }
 
   async finalizeMatch(match: ActiveMatch, ratingEvents: RatingEvent[]): Promise<void> {
-    if (!this.supabase) return;
+    if (!this.supabase) {
+      console.warn(
+        `[finalizeMatch] Supabase not configured — match ${match.id} result NOT persisted. ` +
+          `Discarded ELO deltas: ${ratingEvents.map((event) => `${event.playerId}:${event.delta >= 0 ? "+" : ""}${event.delta}`).join(", ")}`,
+      );
+      return;
+    }
 
     const [player1, player2] = match.players;
     const winner = player1.score === player2.score ? null : player1.score > player2.score ? player1.id : player2.id;
 
-    await this.supabase.from("matches").insert({
-      id: match.id,
-      player1_id: player1.id,
-      player2_id: player2.id,
-      player1_score: player1.score,
-      player2_score: player2.score,
-      winner_id: winner,
-      is_draw: winner === null,
-      difficulty: match.tossups[0]?.difficulty ?? 5,
-      status: "completed",
-      elo_delta: Object.fromEntries(ratingEvents.map((event) => [event.playerId, event.delta])),
-      modifier_breakdown: ratingEvents,
-      completed_at: new Date().toISOString(),
-    });
+    try {
+      await this.supabase.from("matches").insert({
+        id: match.id,
+        player1_id: player1.id,
+        player2_id: player2.id,
+        player1_score: player1.score,
+        player2_score: player2.score,
+        winner_id: winner,
+        is_draw: winner === null,
+        difficulty: match.tossups[0]?.difficulty ?? 5,
+        status: "completed",
+        elo_delta: Object.fromEntries(ratingEvents.map((event) => [event.playerId, event.delta])),
+        modifier_breakdown: ratingEvents,
+        completed_at: new Date().toISOString(),
+      });
 
-    await this.supabase.from("tossup_results").insert(
-      match.results.map((result) => ({
-        id: result.id,
-        match_id: result.matchId,
-        tossup_id: result.tossupId,
-        tossup_order: result.order,
-        player_id: result.playerId,
-        outcome: result.outcome,
-        buzz_word_index: result.buzzWordIndex,
-        points: result.points,
-        was_power: result.wasPower,
-        answer_given: result.answerGiven,
-      })),
-    );
+      await this.supabase.from("tossup_results").insert(
+        match.results.map((result) => ({
+          id: result.id,
+          match_id: result.matchId,
+          tossup_id: result.tossupId,
+          tossup_order: result.order,
+          player_id: result.playerId,
+          outcome: result.outcome,
+          buzz_word_index: result.buzzWordIndex,
+          points: result.points,
+          was_power: result.wasPower,
+          answer_given: result.answerGiven,
+        })),
+      );
 
-    await this.supabase.from("rating_events").insert(
-      ratingEvents.map((event) => ({
-        match_id: match.id,
-        player_id: event.playerId,
-        rating_before: event.before,
-        rating_after: event.after,
-        delta: event.delta,
-        expected_score: event.expectedScore,
-        actual_score: event.actualScore,
-        k_factor: event.kFactor,
-        modifiers: event.modifiers,
-      })),
-    );
+      await this.supabase.from("rating_events").insert(
+        ratingEvents.map((event) => ({
+          match_id: match.id,
+          player_id: event.playerId,
+          rating_before: event.before,
+          rating_after: event.after,
+          delta: event.delta,
+          expected_score: event.expectedScore,
+          actual_score: event.actualScore,
+          k_factor: event.kFactor,
+          modifiers: event.modifiers,
+        })),
+      );
 
-    for (const event of ratingEvents) {
-      const { data: current } = await this.supabase
-        .from("profiles")
-        .select("match_count, placement_count, wins, losses, draws")
-        .eq("id", event.playerId)
-        .single();
-      const playerWon = winner === event.playerId;
-      const playerLost = winner !== null && winner !== event.playerId;
+      for (const event of ratingEvents) {
+        const { data: current } = await this.supabase
+          .from("profiles")
+          .select("match_count, placement_count, wins, losses, draws")
+          .eq("id", event.playerId)
+          .single();
+        const playerWon = winner === event.playerId;
+        const playerLost = winner !== null && winner !== event.playerId;
 
-      await this.supabase
-        .from("profiles")
-        .update({
-          elo: event.after,
-          match_count: (current?.match_count ?? 0) + 1,
-          wins: (current?.wins ?? 0) + (playerWon ? 1 : 0),
-          losses: (current?.losses ?? 0) + (playerLost ? 1 : 0),
-          draws: (current?.draws ?? 0) + (winner === null ? 1 : 0),
-          placement_count: Math.min(5, (current?.placement_count ?? 0) + 1),
-        })
-        .eq("id", event.playerId);
+        await this.supabase
+          .from("profiles")
+          .update({
+            elo: event.after,
+            match_count: (current?.match_count ?? 0) + 1,
+            wins: (current?.wins ?? 0) + (playerWon ? 1 : 0),
+            losses: (current?.losses ?? 0) + (playerLost ? 1 : 0),
+            draws: (current?.draws ?? 0) + (winner === null ? 1 : 0),
+            placement_count: Math.min(5, (current?.placement_count ?? 0) + 1),
+          })
+          .eq("id", event.playerId);
+      }
+    } catch (error) {
+      console.error(`[finalizeMatch] Failed to persist match ${match.id} — ELO/profile updates may be incomplete:`, error);
     }
   }
 }
