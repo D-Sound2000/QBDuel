@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BarChart3, BookOpenCheck, Dumbbell, LogIn, LogOut, Settings, Swords, Trophy, UserRound } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { CursorRisoTrail } from "@/components/cursor-riso-trail";
+import { GradientBackground } from "@/components/ui/paper-design-shader-background";
 import { getCurrentProfile } from "@/lib/data";
 import "./globals.css";
 
@@ -30,6 +31,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
+        {process.env.NEXT_PUBLIC_DISABLE_SHADER !== "1" ? <GradientBackground /> : null}
         <div className="vignette" aria-hidden="true" />
         <CursorRisoTrail />
         <div className="app-shell">

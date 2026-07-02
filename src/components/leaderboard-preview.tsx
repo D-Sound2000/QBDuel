@@ -5,7 +5,7 @@ import type { LeaderboardEntry } from "@/lib/domain/types";
 export function LeaderboardPreview({ entries, currentUserId }: { entries: LeaderboardEntry[]; currentUserId?: string }) {
   if (entries.length === 0) {
     return (
-      <div className="empty-state">
+      <div className="empty-state empty-state-large">
         <strong>No ranked players yet.</strong>
         <span>Finish onboarding and play a match to seed the ladder.</span>
       </div>

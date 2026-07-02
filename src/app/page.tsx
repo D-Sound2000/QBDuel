@@ -39,7 +39,7 @@ export default async function HomePage() {
                 Record <strong>{stats.wins}-{stats.losses}</strong>
               </span>
               <span>
-                Power <strong>{Math.round(stats.powerRate * 100)}%</strong>
+                Win rate <strong>{Math.round(stats.winRate * 100)}%</strong>
               </span>
             </div>
           </section>
@@ -82,26 +82,24 @@ export default async function HomePage() {
             <RecentMatches matches={stats.recentMatches} playerId={profile.id} />
           </section>
 
-          <div className="side-stack bento-side-stack">
-            <aside className="section dashboard-card tossup-card" aria-labelledby="tossup-title">
-              <div className="section-header">
-                <div className="eyebrow">Tossup of the Day</div>
-                <h2 className="section-title" id="tossup-title">
-                  Daily reader
-                </h2>
-              </div>
-              <p>Open today&apos;s tossup in the reader, choose a WPM, and buzz through it like practice.</p>
-              <TossupOfDayButton />
-            </aside>
+          <aside className="section dashboard-card tossup-card" aria-labelledby="tossup-title">
+            <div className="section-header">
+              <div className="eyebrow">Tossup of the Day</div>
+              <h2 className="section-title" id="tossup-title">
+                Daily reader
+              </h2>
+            </div>
+            <p>Open today&apos;s tossup in the reader, choose a WPM, and buzz through it like practice.</p>
+            <TossupOfDayButton />
+          </aside>
 
-            <aside className="section dashboard-card leaderboard-card">
-              <div className="section-header">
-                <div className="eyebrow">Top ladder</div>
-                <h2 className="section-title">Leaderboard</h2>
-              </div>
-              <LeaderboardPreview entries={leaderboard.slice(0, 3)} currentUserId={profile.id} />
-            </aside>
-          </div>
+          <aside className="section dashboard-card leaderboard-card">
+            <div className="section-header">
+              <div className="eyebrow">Top ladder</div>
+              <h2 className="section-title">Leaderboard</h2>
+            </div>
+            <LeaderboardPreview entries={leaderboard.slice(0, 3)} currentUserId={profile.id} />
+          </aside>
         </div>
       </DashboardReveal>
     </main>

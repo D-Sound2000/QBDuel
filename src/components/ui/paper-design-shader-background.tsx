@@ -8,16 +8,16 @@ export function GradientBackground() {
       <GrainGradient
         style={{ height: "100%", width: "100%" }}
         colorBack="hsl(39, 22%, 4%)"
-        softness={0.86}
-        intensity={0.32}
-        noise={0.14}
+        softness={0.9}
+        intensity={0.2}
+        noise={0.12}
         shape="corners"
         offsetX={0.08}
         offsetY={-0.08}
         scale={1.04}
         rotation={8}
-        speed={0.28}
-        colors={["hsl(38, 94%, 48%)", "hsl(43, 92%, 62%)", "hsl(47, 86%, 76%)", "hsl(35, 88%, 58%)"]}
+        speed={0.14}
+        colors={["hsl(43, 60%, 50%)", "hsl(45, 68%, 62%)", "hsl(47, 72%, 72%)", "hsl(40, 52%, 42%)"]}
       />
     </div>
   );

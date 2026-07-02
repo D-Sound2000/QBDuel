@@ -19,12 +19,19 @@ interface RandomTossupResponse {
 export class QbReaderClient {
   constructor(private readonly baseUrl = qbReaderBaseUrl) {}
 
-  async randomTossups(difficulties: number[], number: number, seenIds = new Set<string>()): Promise<Tossup[]> {
+  async randomTossups(
+    difficulties: number[],
+    number: number,
+    seenIds = new Set<string>(),
+    options?: { categories?: string[]; subcategories?: string[] },
+  ): Promise<Tossup[]> {
     const url = new URL(`${this.baseUrl}/random-tossup`);
     url.searchParams.set("difficulties", difficulties.join(","));
     url.searchParams.set("number", String(number));
     url.searchParams.set("standardOnly", "true");
     url.searchParams.set("powermarkOnly", "true");
+    if (options?.categories?.length) url.searchParams.set("categories", options.categories.join(","));
+    if (options?.subcategories?.length) url.searchParams.set("subcategories", options.subcategories.join(","));
 
     const response = await fetch(url, { signal: AbortSignal.timeout(4_000) });
     if (!response.ok) throw new Error(`QBReader random-tossup failed: ${response.status}`);

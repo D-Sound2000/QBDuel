@@ -34,10 +34,25 @@ function fallbackTossups(count: number) {
   return Array.from({ length: count }, (_, index) => normalizeTossup(fallbackRawTossups[index % fallbackRawTossups.length]));
 }
 
-export async function getPracticeTossups(count = matchTossupCount): Promise<Tossup[]> {
+export interface PracticeQuery {
+  count?: number;
+  difficulties?: number[];
+  categories?: string[];
+  subcategories?: string[];
+}
+
+export async function getPracticeTossups(query: PracticeQuery = {}): Promise<Tossup[]> {
+  const count = query.count ?? matchTossupCount;
+  const difficulties = query.difficulties?.length ? query.difficulties : [4, 5, 6];
+
   try {
-    const tossups = await client.randomTossups([4, 5, 6], count + 5, new Set());
-    if (tossups.length >= count) return tossups.slice(0, count);
+    const tossups = await client.randomTossups(difficulties, count + 5, new Set(), {
+      categories: query.categories,
+      subcategories: query.subcategories,
+    });
+    // Narrow category/difficulty filters can legitimately return fewer than requested;
+    // return whatever the API gave us and only fall back when it comes back empty.
+    if (tossups.length > 0) return tossups.slice(0, count);
   } catch {
     // Local fallback keeps practice usable offline.
   }

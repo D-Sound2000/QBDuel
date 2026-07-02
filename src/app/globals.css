@@ -2563,3 +2563,660 @@ button[aria-busy="true"] {
     transform: translateX(100%);
   }
 }
+
+/* ---- Solo practice: filters, timers, reveal ---- */
+
+.filter-toggle {
+  align-self: center;
+}
+
+.filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  color: var(--bone-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.timer-ring[data-danger="true"] {
+  border-color: var(--error);
+  color: var(--error);
+  animation: timerPulse 700ms var(--ease) infinite;
+}
+
+@keyframes timerPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(168, 65, 59, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(168, 65, 59, 0);
+  }
+}
+
+.reveal-panel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--brass);
+  border-radius: 8px;
+  padding: 16px 18px;
+  background:
+    linear-gradient(180deg, rgba(217, 188, 106, 0.08), transparent 60%),
+    rgba(12, 11, 9, 0.5);
+  animation: pageRise 320ms var(--ease) both;
+}
+
+.reveal-panel[data-outcome="power"] {
+  border-left-color: var(--power-gold);
+}
+
+.reveal-panel[data-outcome="correct"] {
+  border-left-color: var(--success);
+}
+
+.reveal-panel[data-outcome="neg"] {
+  border-left-color: var(--error);
+}
+
+.reveal-panel[data-outcome="miss"] {
+  border-left-color: var(--muted);
+}
+
+.reveal-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+}
+
+.outcome-tag {
+  border: 1px solid var(--hairline);
+  padding: 5px 10px;
+  color: var(--bone);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.outcome-tag[data-outcome="power"] {
+  border-color: rgba(230, 200, 120, 0.5);
+  color: var(--power-gold);
+}
+
+.outcome-tag[data-outcome="correct"] {
+  border-color: rgba(111, 158, 94, 0.5);
+  color: var(--success);
+}
+
+.outcome-tag[data-outcome="neg"] {
+  border-color: rgba(168, 65, 59, 0.5);
+  color: var(--error);
+}
+
+.reveal-given {
+  color: var(--bone-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.reveal-answer {
+  display: grid;
+  gap: 4px;
+}
+
+.reveal-answer span {
+  color: var(--brass-bright);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.reveal-answer strong {
+  color: var(--bone);
+  font-family: var(--display);
+  font-size: clamp(26px, 3vw, 36px);
+  font-style: italic;
+  line-height: 1.05;
+}
+
+.filter-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(4, 3, 2, 0.6);
+  backdrop-filter: blur(8px);
+  animation: fadeIn 180ms var(--ease) both;
+}
+
+.filter-sidebar {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 46;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: min(420px, 100%);
+  gap: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--hairline);
+  background:
+    linear-gradient(180deg, rgba(217, 188, 106, 0.06), transparent 22%),
+    linear-gradient(135deg, rgba(20, 32, 25, 0.96), rgba(14, 13, 10, 0.98));
+  box-shadow: -30px 0 90px rgba(0, 0, 0, 0.5);
+  animation: sidebarIn 300ms var(--ease) both;
+}
+
+@keyframes sidebarIn {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.filter-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid var(--hairline-dim);
+}
+
+.filter-head h2 {
+  margin: 4px 0 0;
+  color: var(--bone);
+  font-family: var(--display);
+  font-size: 32px;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 0.95;
+}
+
+.filter-sidebar .filter-section {
+  display: grid;
+  gap: 12px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--hairline-dim);
+}
+
+.filter-sidebar > .filter-section:nth-of-type(3),
+.filter-sidebar .cat-list {
+  overflow-y: auto;
+}
+
+.filter-sidebar > *:nth-child(2) {
+  overflow-y: auto;
+}
+
+.filter-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.filter-heading strong {
+  color: var(--bone);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.text-button {
+  border: 0;
+  background: none;
+  color: var(--bone-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: color 160ms var(--ease);
+}
+
+.text-button:hover:not(:disabled) {
+  color: var(--brass-bright);
+}
+
+.text-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.filter-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.single-slider {
+  width: 100%;
+  height: 22px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: none;
+}
+
+.single-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--brass) var(--fill, 50%), rgba(236, 228, 211, 0.14) var(--fill, 50%));
+}
+
+.single-slider::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(236, 228, 211, 0.14);
+}
+
+.single-slider::-moz-range-progress {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--brass);
+}
+
+.single-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--on-brass);
+  background: var(--brass-bright);
+  cursor: pointer;
+}
+
+.single-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--on-brass);
+  background: var(--brass-bright);
+  cursor: pointer;
+}
+
+.range-slider {
+  position: relative;
+  height: 24px;
+}
+
+.range-track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: rgba(236, 228, 211, 0.14);
+}
+
+.range-fill {
+  position: absolute;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: var(--brass);
+}
+
+.range-slider input[type="range"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  background: none;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.range-slider input[type="range"]::-webkit-slider-runnable-track {
+  background: none;
+}
+
+.range-slider input[type="range"]::-webkit-slider-thumb {
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--on-brass);
+  background: var(--brass-bright);
+  cursor: pointer;
+}
+
+.range-slider input[type="range"]::-moz-range-thumb {
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--on-brass);
+  background: var(--brass-bright);
+  cursor: pointer;
+}
+
+.range-slider input[type="range"]::-moz-range-track {
+  background: none;
+}
+
+.range-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cat-list {
+  display: grid;
+  gap: 14px;
+  max-height: min(46vh, 420px);
+  padding-right: 4px;
+}
+
+.cat-group {
+  display: grid;
+  gap: 8px;
+}
+
+.cat-header {
+  justify-self: start;
+  border: 1px solid rgba(236, 228, 211, 0.16);
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: rgba(12, 11, 9, 0.4);
+  color: var(--bone);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: border-color 160ms var(--ease), background 160ms var(--ease), color 160ms var(--ease);
+}
+
+.cat-header[data-active="true"] {
+  border-color: var(--brass-bright);
+  background: var(--brass);
+  color: var(--on-brass);
+}
+
+.subcat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 4px;
+}
+
+.subcat-chip {
+  border: 1px solid rgba(236, 228, 211, 0.12);
+  border-radius: 999px;
+  padding: 5px 11px;
+  background: rgba(12, 11, 9, 0.3);
+  color: var(--bone-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: border-color 160ms var(--ease), background 160ms var(--ease), color 160ms var(--ease);
+}
+
+.subcat-chip[data-active="true"] {
+  border-color: var(--brass);
+  background: rgba(217, 188, 106, 0.16);
+  color: var(--bone);
+}
+
+.filter-actions {
+  padding: 16px 22px 20px;
+  border-top: 1px solid var(--hairline-dim);
+  background: rgba(8, 7, 5, 0.6);
+}
+
+.filter-actions .primary-button {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .filter-sidebar {
+    width: 100%;
+  }
+}
+
+/* =========================================================================
+   Desktop UI overhaul (branch 7/1)
+   Appended last so it is the authoritative desktop layer, overriding the
+   earlier (and duplicated / conflicting) @media (min-width: 981px) blocks.
+   ========================================================================= */
+
+/* Gold shader background: present but subtle. Card surfaces are opaque, so it
+   only shows in the gaps and never sits behind body text. */
+.paper-shader {
+  opacity: 0.5 !important;
+}
+
+/* Timer ring: a clean circle by default. The conic "sweep" only paints while
+   a countdown is actually running, and depletes with the remaining time. */
+.timer-ring {
+  background: rgba(236, 228, 211, 0.05);
+}
+.timer-ring[data-phase="grace"],
+.timer-ring[data-phase="answering"] {
+  background: conic-gradient(var(--brass) var(--timer-fill, 100%), rgba(236, 228, 211, 0.08) 0);
+}
+
+/* Podium ranks get brighter numerals; long names never collide with columns. */
+.ledger-row[data-rank="1"] .rank-number,
+.ledger-row[data-rank="2"] .rank-number,
+.ledger-row[data-rank="3"] .rank-number {
+  color: var(--brass-bright);
+}
+.ledger-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Win/loss is the most scannable signal in a ledger — give it weight. */
+.match-result-win,
+.match-result-loss {
+  font-weight: 700;
+}
+
+/* Every other interactive element has a hover state; the replay link didn't. */
+.replay-link {
+  transition: color 160ms var(--ease);
+}
+.replay-link:hover,
+.replay-link:focus-visible {
+  color: var(--bone);
+  text-decoration: underline;
+}
+
+/* Match the rounded-corner card language. */
+.status-message {
+  border-radius: 8px;
+}
+
+/* Username field should share the form's right edge with the chip grid. */
+.settings-form .wide-field {
+  width: 100%;
+}
+
+@media (min-width: 981px) {
+  /* ---- Dashboard: natural, scrollable flow (no viewport-lock / clipping) ---- */
+  .dashboard-page {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+    padding: 104px 0 64px 232px;
+  }
+
+  .dashboard-bento {
+    width: min(1240px, calc(100vw - 232px - 96px));
+    height: auto;
+    min-height: 0;
+    max-width: none;
+    margin: 0 auto;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+    grid-template-areas:
+      "welcome     welcome"
+      "play        tossup"
+      "play        leaderboard"
+      "performance recent";
+    gap: 18px;
+    align-items: stretch;
+  }
+
+  .welcome-panel {
+    grid-area: welcome;
+    align-content: center;
+    gap: 16px;
+  }
+  .play-bento-card {
+    grid-area: play;
+    display: grid;
+    align-items: stretch;
+    min-height: 0;
+  }
+  /* The ready-queue summary is meta text, not a headline — keep it compact. */
+  .play-bento-card .quick-match h2 {
+    font-size: clamp(20px, 1.7vw, 26px);
+    line-height: 1.25;
+  }
+  .performance-section {
+    grid-area: performance;
+  }
+  .recent-matches-card {
+    grid-area: recent;
+  }
+  .tossup-card {
+    grid-area: tossup;
+  }
+  .leaderboard-card {
+    grid-area: leaderboard;
+  }
+
+  /* Cards breathe and never clip their content. */
+  .dashboard-card,
+  .section.dashboard-card {
+    padding: clamp(20px, 1.8vw, 28px) !important;
+    overflow: visible;
+  }
+
+  /* One authoritative hero-title size, with real spacing. */
+  .dashboard-title {
+    font-size: clamp(40px, 3.6vw, 58px);
+    line-height: 0.92;
+  }
+  .hero-subhead {
+    max-width: 46ch;
+    font-size: 16px;
+    line-height: 1.45;
+  }
+  .hero-metrics {
+    gap: 10px;
+  }
+  .hero-metrics span {
+    padding: 12px 14px;
+  }
+  .hero-metrics strong {
+    font-size: 26px;
+  }
+
+  /* Section rhythm: heading gap and section gap in proportion. */
+  .section {
+    padding: 44px 0;
+  }
+  .section-header {
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .section-title,
+  .page-title,
+  .panel h2 {
+    font-size: clamp(30px, 2.6vw, 44px);
+  }
+  .section-copy,
+  .panel-copy {
+    font-size: 15px;
+    line-height: 1.42;
+  }
+
+  /* Tossup-of-day card now has a full cell — size type to it, don't clip. */
+  .tossup-card .section-title {
+    font-size: 24px;
+  }
+  .tossup-card p {
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .tossup-read-button {
+    gap: 8px;
+    padding: 8px 13px;
+    font-size: 10px;
+  }
+  .tossup-read-button svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Ledger rows: comfortable rhythm + readable meta at desktop. */
+  .ledger-row,
+  .match-ledger-row {
+    padding: 12px 0;
+  }
+  .ledger-meta {
+    font-size: 11px;
+  }
+  /* Room for 3-digit ranks so "100" never crowds the name. */
+  .ledger-row {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+  }
+  .rank-number {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Practice / match: a real, proportionate circular timer. */
+  .score-row {
+    grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr);
+    gap: 22px;
+  }
+  .timer-ring {
+    width: 104px;
+    height: 104px;
+  }
+
+  /* Sign-in: balance the hero columns and right-size the headline. */
+  .auth-hero-card {
+    align-items: center;
+  }
+  .auth-hero-card .page-title {
+    font-size: clamp(40px, 3.4vw, 60px);
+  }
+
+  /* Profile masthead: scale the name down into the desktop type ramp. */
+  .profile-name {
+    font-size: clamp(48px, 4.5vw, 76px);
+  }
+}
